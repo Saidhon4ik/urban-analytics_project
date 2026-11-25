@@ -22,16 +22,19 @@
 
 # CELL ********************
 
+from pyspark.sql import functions as F
+from pyspark.sql.window import Window
 
-# METADATA ********************
+BRONZE_ECB = "bronze_ecb_exchange_rates"
+BRONZE_OPENAQ_LOCATIONS = "bronze_openaq_locations"
+BRONZE_OPENAQ_MEASUREMENTS = "bronze_openaq_daily_measurements"
+BRONZE_WORLD_BANK = "NY GDP MKTP CD_full json"
 
-# META {
-# META   "language": "python",
-# META   "language_group": "synapse_pyspark"
-# META }
-
-# CELL ********************
-
+SILVER_TAXI = "silver_nyc_taxi_trips"
+SILVER_OPENAQ_LOCATIONS = "silver_openaq_locations"
+SILVER_OPENAQ_MEASUREMENTS = "silver_openaq_daily_measurements"
+SILVER_ECB = "silver_ecb_exchange_rates"
+SILVER_GDP = "silver_world_bank_gdp"
 
 # METADATA ********************
 
