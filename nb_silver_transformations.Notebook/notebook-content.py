@@ -23,18 +23,163 @@
 # CELL ********************
 
 from pyspark.sql import functions as F
-from pyspark.sql.window import Window
 
-BRONZE_ECB = "bronze_ecb_exchange_rates"
-BRONZE_OPENAQ_LOCATIONS = "bronze_openaq_locations"
-BRONZE_OPENAQ_MEASUREMENTS = "bronze_openaq_daily_measurements"
-BRONZE_WORLD_BANK = "NY GDP MKTP CD_full json"
+bronze_taxi = "Files/nyc_taxi/yellow_tripdata_2025-06.parquet"
+bronze_locations = "bronze_openaq_locations"
+bronze_measurements = "bronze_openaq_daily_measurements"
+bronze_ecb = "bronze_ecb_exchange_rates"
+bronze_gdp = "bronze_world_bank_gdp"
 
-SILVER_TAXI = "silver_nyc_taxi_trips"
-SILVER_OPENAQ_LOCATIONS = "silver_openaq_locations"
-SILVER_OPENAQ_MEASUREMENTS = "silver_openaq_daily_measurements"
-SILVER_ECB = "silver_ecb_exchange_rates"
-SILVER_GDP = "silver_world_bank_gdp"
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+tables = [
+    bronze_locations,
+    bronze_measurements,
+    bronze_ecb,
+    bronze_gdp
+]
+
+for table in tables:
+    print("\nTABLE:", table)
+
+    df = spark.table(table)
+
+    df.printSchema()
+
+    print("Rows:", df.count())
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+taxi = spark.read.parquet(bronze_taxi)
+
+taxi = taxi.toDF(*[c.lower() for c in taxi.columns])
+
+taxi = taxi.withColumn(
+    "pickup_date",
+    F.to_date("tpep_pickup_datetime")
+)
+
+taxi = taxi.withColumn(
+    "dropoff_date",
+    F.to_date("tpep_dropoff_datetime")
+)
+
+taxi = taxi.dropDuplicates()
+
+taxi.write.format("delta").mode("overwrite").saveAsTable(
+    "silver_nyc_taxi_trips"
+)
+
+print("Silver Taxi rows:", taxi.count())
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+locations = spark.table(bronze_locations)
+
+locations = locations.dropDuplicates()
+
+locations.write.format("delta").mode("overwrite").saveAsTable(
+    "silver_openaq_locations"
+)
+
+measurements = spark.table(bronze_measurements)
+
+measurements = measurements.withColumn(
+    "measurement_date",
+    F.to_date("period_from_utc")
+)
+
+measurements = measurements.dropDuplicates()
+
+measurements.write.format("delta").mode("overwrite").saveAsTable(
+    "silver_openaq_daily_measurements"
+)
+
+print("Silver locations:", locations.count())
+print("Silver measurements:", measurements.count())
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+ecb = spark.table(bronze_ecb)
+
+ecb = ecb.withColumnRenamed("OBS_VALUE", "exchange_rate")
+
+ecb = ecb.withColumn(
+    "rate_date",
+    F.to_date("TIME_PERIOD")
+)
+
+ecb = ecb.withColumn("base_currency", F.lit("EUR"))
+ecb = ecb.withColumn("target_currency", F.lit("USD"))
+
+ecb.write.format("delta").mode("overwrite").option(
+    "overwriteSchema", "true"
+).saveAsTable("silver_ecb_exchange_rates")
+
+gdp = spark.table(bronze_gdp)
+
+gdp = gdp.withColumnRenamed("countryiso3code", "country_iso3")
+gdp = gdp.withColumnRenamed("date", "year")
+gdp = gdp.withColumnRenamed("value", "gdp_usd")
+
+gdp.write.format("delta").mode("overwrite").saveAsTable(
+    "silver_world_bank_gdp"
+)
+
+print("Silver ECB:", ecb.count())
+print("Silver GDP:", gdp.count())
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+tables = [
+    "silver_nyc_taxi_trips",
+    "silver_openaq_locations",
+    "silver_openaq_daily_measurements",
+    "silver_ecb_exchange_rates",
+    "silver_world_bank_gdp"
+]
+
+for table in tables:
+    df = spark.table(table)
+
+    print("\nTABLE:", table)
+    print("Rows:", df.count())
+    print("Columns:", len(df.columns))
 
 # METADATA ********************
 
